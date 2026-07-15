@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EUR/USD Signaal — live forex signaal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0C10; --card:#12151B; --card2:#161A21; --border:#20252E;
+    --text:#E7E9EC; --dim:#8992A3; --dim2:#5C6472;
+    --orange:#2F7BF7; --long:#22C55E; --short:#EF4444; --wait:#EAB308; --cyan:#35C4E0;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 20% -10%, rgba(47,123,247,0.08), transparent),
+      radial-gradient(ellipse 700px 500px at 90% 10%, rgba(53,196,224,0.05), transparent),
+      var(--bg);
+    color:var(--text); font-family:'Space Grotesk', sans-serif; min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'IBM Plex Mono', monospace;} a{color:inherit;}
+  .ticker-wrap{border-bottom:1px solid var(--border); background:#0D1015; overflow:hidden; white-space:nowrap; height:34px; display:flex; align-items:center;}
+  .ticker-track{display:inline-flex; align-items:center; animation: scroll-left 28s linear infinite; padding-left:100%;}
+  .ticker-track span{font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--dim); margin-right:44px; letter-spacing:0.02em;}
+  .ticker-track span b{color:var(--text); font-weight:600;}
+  @keyframes scroll-left{0%{transform:translateX(0);} 100%{transform:translateX(-100%);}}
+  .wrap{max-width:960px; margin:0 auto; padding:28px 20px 60px;}
+  header.top{display:flex; align-items:center; justify-content:space-between; margin-bottom:26px; flex-wrap:wrap; gap:10px;}
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand .glyph{width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg, var(--orange), #1a4fb0); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; color:#fff;}
+  .brand h1{font-size:17px; margin:0; font-weight:600; letter-spacing:-0.01em;}
+  .brand p{margin:0; font-size:12px; color:var(--dim);}
+  .status{display:flex; align-items:center; gap:7px; font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--dim); border:1px solid var(--border); padding:6px 11px; border-radius:99px; background:var(--card); cursor:pointer;}
+  .dot{width:7px; height:7px; border-radius:50%; background:var(--dim2);}
+  .dot.live{background:var(--long); box-shadow:0 0 0 3px rgba(34,197,94,0.18);}
+  .dot.err{background:var(--short); box-shadow:0 0 0 3px rgba(239,68,68,0.18);}
+  .board{border:1px solid var(--border); border-radius:var(--radius); background:linear-gradient(180deg, var(--card2), var(--card)); padding:30px 26px; margin-bottom:18px; position:relative; overflow:hidden;}
+  .board::before{content:""; position:absolute; inset:0; background:radial-gradient(600px 240px at 15% 0%, rgba(47,123,247,0.10), transparent); pointer-events:none;}
+  .board-top{display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap;}
+  .board-label{font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:var(--dim); font-family:'IBM Plex Mono', monospace;}
+  .price-now{font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--dim); margin-top:4px;}
+  .price-now b{color:var(--text); font-size:15px;}
+  .chg-up{color:var(--long);} .chg-down{color:var(--short);}
+  .flap-holder{ perspective:800px; margin:22px 0 10px; }
+  .flap{display:inline-block; font-size:64px; font-weight:700; letter-spacing:0.02em; line-height:1; transform-style:preserve-3d; transition:transform .16s;}
+  .flap.flipping{animation:flip 0.5s ease;}
+  @keyframes flip{0%{transform:rotateX(0deg); opacity:1;} 45%{transform:rotateX(90deg); opacity:0.2;} 55%{transform:rotateX(90deg); opacity:0.2;} 100%{transform:rotateX(0deg); opacity:1;}}
+  .flap.LONG{color:var(--long); text-shadow:0 0 30px rgba(34,197,94,0.25);}
+  .flap.SHORT{color:var(--short); text-shadow:0 0 30px rgba(239,68,68,0.25);}
+  .flap.WAIT{color:var(--wait); text-shadow:0 0 30px rgba(234,179,8,0.20);}
+  .board-sub{font-size:13.5px; color:var(--dim); max-width:520px; line-height:1.5;}
+  .board-meta{display:flex; gap:26px; margin-top:22px; flex-wrap:wrap; border-top:1px solid var(--border); padding-top:16px;}
+  .meta-item .k{font-size:10.5px; text-transform:uppercase; letter-spacing:0.1em; color:var(--dim2); font-family:'IBM Plex Mono', monospace;}
+  .meta-item .v{font-family:'IBM Plex Mono', monospace; font-size:15px; margin-top:3px; font-weight:600;}
+  .confidence-bar{height:5px; border-radius:99px; background:#1c212a; margin-top:8px; overflow:hidden; width:130px;}
+  .confidence-fill{height:100%; border-radius:99px; transition:width .4s;}
+  .section-head{margin:30px 0 12px;}
+  .section-head h2{font-size:15px; margin:0 0 4px; font-weight:600;}
+  .section-head p{font-size:12.5px; color:var(--dim); margin:0; max-width:560px; line-height:1.5;}
+  .grid5{display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:8px;}
+  .grid3{display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-bottom:18px;}
+  @media (max-width:720px){.grid3{grid-template-columns:1fr;}}
+  .ind-card{border:1px solid var(--border); border-radius:var(--radius); background:var(--card); padding:16px;}
+  .ind-card .ihead{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; gap:6px;}
+  .ind-card h3{font-size:12.5px; margin:0; font-weight:600;}
+  .pill{font-family:'IBM Plex Mono', monospace; font-size:10px; padding:3px 8px; border-radius:99px; font-weight:600; letter-spacing:0.03em; white-space:nowrap;}
+  .pill.up{background:rgba(34,197,94,0.14); color:var(--long);}
+  .pill.down{background:rgba(239,68,68,0.14); color:var(--short);}
+  .pill.flat{background:rgba(234,179,8,0.14); color:var(--wait);}
+  .ind-row{display:flex; justify-content:space-between; font-size:12px; color:var(--dim); margin-top:5px; font-family:'IBM Plex Mono', monospace;}
+  .ind-row b{color:var(--text); font-weight:600;}
+  .ind-desc{font-size:11px; color:var(--dim2); margin-top:9px; line-height:1.5;}
+  .chart-card{border:1px solid var(--border); border-radius:var(--radius); background:var(--card); padding:18px; margin-bottom:18px;}
+  .chart-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
+  .chart-head h3{font-size:13px; margin:0; font-weight:600;}
+  .chart-head span{font-size:11px; color:var(--dim2); font-family:'IBM Plex Mono', monospace;}
+  canvas{width:100%; display:block;}
+  .tr-card{border:1px solid var(--border); border-radius:var(--radius); background:var(--card); padding:18px 18px 6px; margin-bottom:18px;}
+  .tr-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;}
+  .tr-head h3{font-size:13px; margin:0; font-weight:600;}
+  .tr-head span{font-size:11px; color:var(--dim2);}
+  table{width:100%; border-collapse:collapse; margin-top:8px;}
+  th{text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:var(--dim2); padding:8px 6px; border-bottom:1px solid var(--border); font-weight:500;}
+  td{padding:10px 6px; font-size:12.5px; border-bottom:1px solid #191d24; font-family:'IBM Plex Mono', monospace; color:var(--text);}
+  td.side-LONG{color:var(--long); font-weight:600;} td.side-SHORT{color:var(--short); font-weight:600;}
+  .empty-row td{color:var(--dim2); text-align:center; padding:26px 6px; font-family:'Space Grotesk';}
+  .faq-card{border:1px solid var(--border); border-radius:var(--radius); background:var(--card); padding:18px; margin-bottom:18px;}
+  .faq-item{padding:14px 0; border-bottom:1px solid #191d24;} .faq-item:last-child{border-bottom:none;}
+  .faq-item h4{font-size:13px; margin:0 0 6px; font-weight:600;}
+  .faq-item p{font-size:12.5px; color:var(--dim); margin:0; line-height:1.6;}
+  footer{font-size:11.5px; color:var(--dim2); line-height:1.6; padding-top:8px; border-top:1px solid var(--border); margin-top:6px;}
+  footer p{margin:8px 0;} footer b{color:var(--dim);}
+
+  .modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:50; padding:20px;}
+  .modal{background:var(--card2); border:1px solid var(--border); border-radius:var(--radius); padding:26px; max-width:440px; width:100%;}
+  .modal h2{font-size:16px; margin:0 0 6px;}
+  .modal p{font-size:12.5px; color:var(--dim); line-height:1.6; margin:0 0 16px;}
+  .modal label{font-size:11px; color:var(--dim2); text-transform:uppercase; letter-spacing:0.06em; font-family:'IBM Plex Mono', monospace; display:block; margin-bottom:5px;}
+  .modal input{width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--border); background:#0D1015; color:var(--text); font-family:'IBM Plex Mono', monospace; font-size:13px; margin-bottom:14px;}
+  .modal a{color:var(--cyan);}
+  .modal button{width:100%; padding:11px; border-radius:9px; border:none; background:var(--orange); color:#fff; font-weight:600; font-size:13px; cursor:pointer; font-family:'Space Grotesk';}
+  .modal .err{color:var(--short); font-size:12px; margin:-8px 0 12px; display:none;}
+</style>
+</head>
+<body>
+
+<div id="settingsModal" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <h2>Twee gratis API keys nodig</h2>
+    <p>Dit dashboard gebruikt Twelve Data voor de koers en Alpha Vantage voor nieuws sentiment. Beide gratis, geen betaling. Plak hier je eigen keys, ze blijven alleen in je eigen browser opgeslagen.</p>
+    <label>Twelve Data API key</label>
+    <input type="text" id="tdKeyInput" placeholder="plak hier je Twelve Data key">
+    <label>Alpha Vantage API key</label>
+    <input type="text" id="avKeyInput" placeholder="plak hier je Alpha Vantage key">
+    <div class="err" id="modalErr">Vul beide velden in.</div>
+    <button id="saveKeysBtn">Opslaan en starten</button>
+    <p style="margin-top:14px; font-size:11.5px;">Nog geen keys? Gratis aanmaken bij <a href="https://twelvedata.com/pricing" target="_blank">twelvedata.com</a> en <a href="https://www.alphavantage.co/support/#api-key" target="_blank">alphavantage.co</a>.</p>
+  </div>
+</div>
+
+<div class="ticker-wrap">
+  <div class="ticker-track" id="tickerTrack"><span>EUR/USD laden…</span></div>
+</div>
+
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="glyph">EU</div>
+      <div>
+        <h1>EUR/USD Signaal</h1>
+        <p>Eigen versie · forex koers, nieuws en positionering · geen betaalde databron</p>
+      </div>
+    </div>
+    <div class="status" id="statusBtn" title="Klik om API keys te wijzigen">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">verbinden…</span>
+    </div>
+  </header>
+
+  <div class="board">
+    <div class="board-top">
+      <div>
+        <div class="board-label">Huidig signaal · EUR/USD · 4H</div>
+        <div class="price-now" id="priceNow">koers laden…</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="board-label">Vertrouwen</div>
+        <div class="v mono" id="confVal" style="font-size:15px; font-weight:600; margin-top:4px;">-</div>
+        <div class="confidence-bar"><div class="confidence-fill" id="confFill" style="width:0%; background:var(--wait);"></div></div>
+      </div>
+    </div>
+
+    <div class="flap-holder"><span class="flap WAIT" id="flapWord">LADEN</span></div>
+    <div class="board-sub" id="boardSub">Bezig met ophalen van koersdata, nieuws en positionering.</div>
+
+    <div class="board-meta">
+      <div class="meta-item"><div class="k">Status sinds</div><div class="v" id="mSince">-</div></div>
+      <div class="meta-item"><div class="k">Signalen deze week</div><div class="v" id="mWeekCount">-</div></div>
+      <div class="meta-item"><div class="k">Laatst bijgewerkt</div><div class="v" id="mUpdated">-</div></div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>Wat gaat er in een signaal</h2>
+    <p>Vijf databronnen: drie op basis van koersdata, een op nieuws sentiment, een op positionering van grote institutionele spelers. Ververst elke 5 minuten, want de gratis API's hebben een daglimiet.</p>
+  </div>
+
+  <div class="grid5">
+    <div class="ind-card">
+      <div class="ihead"><h3>Trend</h3><span class="pill flat" id="pillTrend">-</span></div>
+      <div class="ind-row"><span>EMA9 vs EMA21</span><b id="trendVal">-</b></div>
+      <div class="ind-desc">Snel gemiddelde boven traag gemiddelde wijst op een opgaande trend.</div>
+    </div>
+    <div class="ind-card">
+      <div class="ihead"><h3>Structuurzones</h3><span class="pill flat" id="pillZone">-</span></div>
+      <div class="ind-row"><span>Positie in range</span><b id="zoneVal">-</b></div>
+      <div class="ind-desc">Afstand tot recente steun en weerstand van de laatste 20 candles.</div>
+    </div>
+    <div class="ind-card">
+      <div class="ihead"><h3>Volatiliteit en momentum</h3><span class="pill flat" id="pillMom">-</span></div>
+      <div class="ind-row"><span>RSI (14)</span><b id="momVal">-</b></div>
+      <div class="ind-desc">RSI richting, alleen meegeteld als er genoeg beweging in de markt zit.</div>
+    </div>
+    <div class="ind-card">
+      <div class="ihead"><h3>Nieuws sentiment</h3><span class="pill flat" id="pillNews">-</span></div>
+      <div class="ind-row"><span>Alpha Vantage score</span><b id="newsVal">-</b></div>
+      <div class="ind-desc">Gemiddeld sentiment van recente forex nieuwsartikelen. Ververst elke paar uur.</div>
+    </div>
+    <div class="ind-card">
+      <div class="ihead"><h3>Institutionele positionering</h3><span class="pill flat" id="pillCot">-</span></div>
+      <div class="ind-row"><span>CFTC netto verandering</span><b id="cotVal">-</b></div>
+      <div class="ind-desc">Wekelijks CFTC rapport: bouwen grote spelers long of short posities op in euro futures.</div>
+    </div>
+  </div>
+
+  <div class="tr-card" style="margin-bottom:18px;">
+    <div class="tr-head"><h3>Wat betekent het signaal</h3></div>
+    <div class="grid3" style="margin-top:12px; margin-bottom:0;">
+      <div class="ind-card" style="border-color:rgba(34,197,94,0.25);">
+        <div class="ihead"><h3 style="color:var(--long);">LONG</h3></div>
+        <div class="ind-desc" style="color:var(--dim);">Euro verwacht sterker te worden tegenover de dollar. Actie: EUR kopen tegen USD, via een forex broker.</div>
+      </div>
+      <div class="ind-card" style="border-color:rgba(239,68,68,0.25);">
+        <div class="ihead"><h3 style="color:var(--short);">SHORT</h3></div>
+        <div class="ind-desc" style="color:var(--dim);">Euro verwacht zwakker te worden. Actie: EUR verkopen tegen USD. Bij forex gaat dit meestal met hefboom via je broker, check dus altijd eerst je risico per trade.</div>
+      </div>
+      <div class="ind-card" style="border-color:rgba(234,179,8,0.25);">
+        <div class="ihead"><h3 style="color:var(--wait);">WAIT</h3></div>
+        <div class="ind-desc" style="color:var(--dim);">Geen duidelijke richting. Actie: niks doen, afwachten tot het signaal wisselt.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-head">
+      <h3>EUR/USD . 4H koers met EMA9 / EMA21</h3>
+      <span class="mono">volgende update over <b id="countdown">300</b>s</span>
+    </div>
+    <canvas id="chartCanvas" height="220"></canvas>
+  </div>
+
+  <div class="tr-card">
+    <div class="tr-head">
+      <h3>Track record</h3>
+      <span>alleen live signalen sinds dit dashboard voor het eerst draaide in deze browser</span>
+    </div>
+    <table>
+      <thead><tr><th>Kant</th><th>Entry</th><th>Tijd</th><th>Piek beweging</th><th>Status</th></tr></thead>
+      <tbody id="trBody">
+        <tr class="empty-row"><td colspan="5">Nog geen gelogde signalen. Zodra het eerste LONG of SHORT signaal vuurt, verschijnt het hier.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="faq-card">
+    <div class="tr-head"><h3>Veelgestelde vragen</h3></div>
+    <div class="faq-item">
+      <h4>Waarom ververst dit maar elke 5 minuten, bij crypto was dat 1 minuut?</h4>
+      <p>De gratis Twelve Data en Alpha Vantage accounts hebben een daglimiet op het aantal aanvragen. Binance's gratis publieke data heeft dat niet. Met 5 minuten blijf je ruim onder de limiet.</p>
+    </div>
+    <div class="faq-item">
+      <h4>Waarom is de markt soms dicht?</h4>
+      <p>Forex handelt niet 24/7 zoals crypto. In het weekend is de markt gesloten, dan blijft de laatst bekende koers en het laatste signaal staan.</p>
+    </div>
+    <div class="faq-item">
+      <h4>Wat is die CFTC positionering precies?</h4>
+      <p>De Amerikaanse toezichthouder CFTC publiceert wekelijks hoeveel grote speculatieve partijen long of short zitten in euro futures. Bouwen ze netto meer long posities op dan vorige week, telt dat als bullish signaal voor de euro.</p>
+    </div>
+    <div class="faq-item">
+      <h4>Voorspelt dit de koers?</h4>
+      <p>Nee. Het is een kansinschatting op basis van wat er nu zichtbaar is, geen voorspelling. Jij blijft zelf verantwoordelijk voor entry, stop, hefboom en positiegrootte.</p>
+    </div>
+  </div>
+
+  <footer>
+    <p><b>Hoe dit werkt.</b> Koersdata komt van Twelve Data, nieuws sentiment van Alpha Vantage, institutionele positionering van de publieke CFTC data. Alles gebeurt in je browser met jouw eigen gratis API keys, er wordt niets naar een server van mij gestuurd.</p>
+    <p><b>Geen financieel advies.</b> Signalen zijn kansberekening op basis van zichtbare markt- en nieuwsdata, geen garantie en geen advies. Forex met hefboom kent extra risico's. Handel op eigen risico.</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  var SYMBOL = "EUR/USD";
+  var PRICE_REFRESH_MS = 300000;
+  var NEWS_CACHE_MS = 6*3600*1000;
+  var COT_CACHE_MS = 24*3600*1000;
+  var ENTER_THRESHOLD = 3;
+
+  function el(id){ return document.getElementById(id); }
+  function fmtRate(n){ return n.toFixed(5); }
+  function fmtPct(n){ return (n>=0?'+':'') + n.toFixed(2) + '%'; }
+  var secondsToNext = PRICE_REFRESH_MS/1000;
+
+  var openTrade = null;
+  var activeState = {side:'WAIT', since:Date.now()};
+
+  function getKeys(){
+    return { td: localStorage.getItem('eurusd_td_key')||'', av: localStorage.getItem('eurusd_av_key')||'' };
+  }
+  function saveKeys(td, av){
+    localStorage.setItem('eurusd_td_key', td);
+    localStorage.setItem('eurusd_av_key', av);
+  }
+  function lsGet(key){ try{ var v = localStorage.getItem(key); return v?JSON.parse(v):null; }catch(e){ return null; } }
+  function lsSet(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
+  function lsDel(key){ try{ localStorage.removeItem(key); }catch(e){} }
+  function lsKeysWithPrefix(prefix){
+    var out=[];
+    for(var i=0;i<localStorage.length;i++){
+      var k = localStorage.key(i);
+      if(k && k.indexOf(prefix)===0) out.push(k);
+    }
+    return out;
+  }
+
+  function ema(values, period){
+    var k = 2/(period+1);
+    var out = [values[0]];
+    for(var i=1;i<values.length;i++) out.push(values[i]*k + out[i-1]*(1-k));
+    return out;
+  }
+  function rsi(values, period){
+    var gains=0, losses=0;
+    for(var i=1;i<=period;i++){ var d = values[i]-values[i-1]; if(d>=0) gains+=d; else losses-=d; }
+    var avgGain=gains/period, avgLoss=losses/period;
+    var rsis=[];
+    for(var j=period+1;j<values.length;j++){
+      var d2 = values[j]-values[j-1];
+      var gain = d2>0?d2:0, loss = d2<0?-d2:0;
+      avgGain = (avgGain*(period-1)+gain)/period;
+      avgLoss = (avgLoss*(period-1)+loss)/period;
+      var rs = avgLoss===0 ? 100 : avgGain/avgLoss;
+      rsis.push(100 - (100/(1+rs)));
+    }
+    return rsis[rsis.length-1];
+  }
+  function atrCalc(highs, lows, closes, period){
+    var trs=[];
+    for(var i=1;i<closes.length;i++){
+      var tr = Math.max(highs[i]-lows[i], Math.abs(highs[i]-closes[i-1]), Math.abs(lows[i]-closes[i-1]));
+      trs.push(tr);
+    }
+    var recent = trs.slice(-period);
+    var base = trs.slice(-period*2,-period);
+    var recentAvg = recent.reduce(function(a,b){return a+b;},0)/recent.length;
+    var baseAvg = base.length ? base.reduce(function(a,b){return a+b;},0)/base.length : recentAvg;
+    return {recentAvg:recentAvg, baseAvg:baseAvg};
+  }
+
+  function getJson(url){
+    return fetch(url).then(function(r){
+      if(!r.ok) throw new Error('fetch failed '+url);
+      return r.json();
+    });
+  }
+
+  function fetchPriceData(tdKey){
+    return getJson('https://api.twelvedata.com/time_series?symbol='+encodeURIComponent(SYMBOL)+'&interval=4h&outputsize=100&apikey='+tdKey).then(function(ts){
+      if(ts.status==='error' || ts.code) throw new Error('Twelve Data: ' + (ts.message||'fout'));
+      return getJson('https://api.twelvedata.com/quote?symbol='+encodeURIComponent(SYMBOL)+'&apikey='+tdKey).then(function(quote){
+        var values = ts.values.slice().reverse();
+        return { values: values, quote: quote };
+      });
+    });
+  }
+
+  function fetchNewsSentiment(avKey){
+    var cached = lsGet('eurusd-news-cache');
+    if(cached && (Date.now()-cached.time) < NEWS_CACHE_MS) return Promise.resolve(cached.score);
+    return getJson('https://www.alphavantage.co/query?function=NEWS_SENTIMENT&topics=forex&apikey='+avKey).then(function(data){
+      if(!data.feed || !data.feed.length){
+        lsSet('eurusd-news-cache', {time:Date.now(), score:0});
+        return 0;
+      }
+      var scores = data.feed.slice(0,25).map(function(a){ return parseFloat(a.overall_sentiment_score); }).filter(function(n){ return !isNaN(n); });
+      var avg = scores.length ? scores.reduce(function(a,b){return a+b;},0)/scores.length : 0;
+      lsSet('eurusd-news-cache', {time:Date.now(), score:avg});
+      return avg;
+    }).catch(function(e){
+      return cached ? cached.score : 0;
+    });
+  }
+
+  function fetchCOT(){
+    var cached = lsGet('eurusd-cot-cache');
+    if(cached && (Date.now()-cached.time) < COT_CACHE_MS) return Promise.resolve(cached);
+    var url = "https://publicreporting.cftc.gov/resource/6dca-aqww.json?$where=contract_market_name like 'EURO FX'&$order=report_date_as_yyyy_mm_dd DESC&$limit=2";
+    return getJson(url).then(function(rows){
+      if(!rows || rows.length<2) return cached || {time:Date.now(), netChange:0, netNow:0};
+      var netNow = parseFloat(rows[0].noncomm_positions_long_all) - parseFloat(rows[0].noncomm_positions_short_all);
+      var netPrev = parseFloat(rows[1].noncomm_positions_long_all) - parseFloat(rows[1].noncomm_positions_short_all);
+      var result = {time:Date.now(), netChange: netNow-netPrev, netNow: netNow};
+      lsSet('eurusd-cot-cache', result);
+      return result;
+    }).catch(function(e){
+      return cached || {time:Date.now(), netChange:0, netNow:0};
+    });
+  }
+
+  function computeAll(priceData, newsScore, cotData){
+    var closes = priceData.values.map(function(v){ return parseFloat(v.close); });
+    var highs = priceData.values.map(function(v){ return parseFloat(v.high); });
+    var lows = priceData.values.map(function(v){ return parseFloat(v.low); });
+
+    var ema9arr = ema(closes.slice(-40), 9);
+    var ema21arr = ema(closes.slice(-40), 21);
+    var ema9 = ema9arr[ema9arr.length-1];
+    var ema21 = ema21arr[ema21arr.length-1];
+    var rsiVal = rsi(closes.slice(-40), 14);
+    var lastClose = closes[closes.length-1];
+    var prevClose = closes[closes.length-2];
+    var priceChangePct = ((lastClose-prevClose)/prevClose)*100;
+
+    var trend = ema9>ema21 ? 1 : (ema9<ema21 ? -1 : 0);
+
+    var swingHigh = Math.max.apply(null, highs.slice(-20));
+    var swingLow = Math.min.apply(null, lows.slice(-20));
+    var rangePos = swingHigh>swingLow ? (lastClose-swingLow)/(swingHigh-swingLow) : 0.5;
+    var zoneScore = rangePos<0.35 ? 1 : (rangePos>0.65 ? -1 : 0);
+
+    var atrRes = atrCalc(highs.slice(-40), lows.slice(-40), closes.slice(-40), 14);
+    var atrRatio = atrRes.baseAvg>0 ? atrRes.recentAvg/atrRes.baseAvg : 1;
+    var rsiDir = rsiVal>55 ? 1 : (rsiVal<45 ? -1 : 0);
+    var momScore = atrRatio<0.85 ? 0 : rsiDir;
+
+    var newsScoreVal = newsScore>=0.15 ? 1 : (newsScore<=-0.15 ? -1 : 0);
+    var cotScoreVal = cotData.netChange>0 ? 1 : (cotData.netChange<0 ? -1 : 0);
+
+    var composite = trend + zoneScore + momScore + newsScoreVal + cotScoreVal;
+    var confidence = Math.min(100, Math.round((Math.abs(composite)/5)*100));
+
+    return {
+      composite:composite, confidence:confidence, trend:trend, zoneScore:zoneScore, momScore:momScore,
+      newsScoreVal:newsScoreVal, cotScoreVal:cotScoreVal,
+      rsiVal:rsiVal, atrRatio:atrRatio, rangePos:rangePos, newsScore:newsScore, cotChange: cotData.netChange,
+      ema9:ema9, ema21:ema21, lastClose:lastClose, priceChangePct:priceChangePct,
+      closesForChart: closes.slice(-60), ema9arr:ema9arr, ema21arr:ema21arr,
+      quote: priceData.quote
+    };
+  }
+
+  function decideSide(composite, prevSide){
+    if(prevSide==='LONG') return composite<=0 ? (composite<=-ENTER_THRESHOLD?'SHORT':'WAIT') : 'LONG';
+    if(prevSide==='SHORT') return composite>=0 ? (composite>=ENTER_THRESHOLD?'LONG':'WAIT') : 'SHORT';
+    if(composite>=ENTER_THRESHOLD) return 'LONG';
+    if(composite<=-ENTER_THRESHOLD) return 'SHORT';
+    return 'WAIT';
+  }
+
+  function loadOpenTrade(){ return lsGet('eurusd-open-trade'); }
+  function saveOpenTrade(trade){ if(trade) lsSet('eurusd-open-trade', trade); else lsDel('eurusd-open-trade'); }
+  function loadActiveState(){ return lsGet('eurusd-active-state'); }
+  function saveActiveState(state){ lsSet('eurusd-active-state', state); }
+  function logHistory(entry){ lsSet('eurusd-hist:'+entry.time, entry); }
+  function updateHistory(entry){ lsSet('eurusd-hist:'+entry.time, entry); }
+  function loadHistory(){
+    return lsKeysWithPrefix('eurusd-hist:').map(function(k){ return lsGet(k); }).filter(Boolean).sort(function(a,b){ return b.time-a.time; });
+  }
+
+  function handleSignalTransition(computed){
+    var now = Date.now();
+    var decided = decideSide(computed.composite, activeState.side);
+
+    if(openTrade){
+      var dirMult = openTrade.side==='LONG' ? 1 : -1;
+      var moveNow = ((computed.lastClose - openTrade.entry)/openTrade.entry)*100*dirMult;
+      if(moveNow > openTrade.peak) openTrade.peak = moveNow;
+      openTrade.lastPrice = computed.lastClose;
+      openTrade.status = decided===openTrade.side ? 'open' : 'gesloten';
+      updateHistory(openTrade);
+      saveOpenTrade(openTrade.status==='open' ? openTrade : null);
+      if(openTrade.status!=='open') openTrade = null;
+    }
+    if(decided!=='WAIT' && !openTrade && decided!==activeState.side){
+      openTrade = { side:decided, entry:computed.lastClose, time:now, peak:0, lastPrice:computed.lastClose, status:'open' };
+      saveOpenTrade(openTrade);
+      logHistory(openTrade);
+    }
+    if(decided!==activeState.side){
+      activeState = {side:decided, since:now};
+      saveActiveState(activeState);
+    }
+    return decided;
+  }
+
+  function flag(v){ if(v>0) return 'up'; if(v<0) return 'down'; return 'flat'; }
+  function label(v){ if(v>0) return 'bullish'; if(v<0) return 'bearish'; return 'neutraal'; }
+  function timeSince(ms){
+    var diff = Date.now()-ms;
+    var mins = Math.floor(diff/60000);
+    if(mins<60) return mins+'m';
+    var hours = Math.floor(mins/60);
+    if(hours<24) return hours+'u '+(mins%60)+'m';
+    var days = Math.floor(hours/24);
+    return days+'d '+(hours%24)+'u';
+  }
+
+  function renderTicker(computed, side){
+    var chg = computed.priceChangePct;
+    var track = el('tickerTrack');
+    var txt = '<span>EUR/USD <b>'+fmtRate(computed.lastClose)+'</b></span>'+
+      '<span>Verandering <b class="'+(chg>=0?'chg-up':'chg-down')+'">'+fmtPct(chg)+'</b></span>'+
+      '<span>Signaal <b>'+side+'</b></span>'+
+      '<span>RSI <b>'+computed.rsiVal.toFixed(1)+'</b></span>'+
+      '<span>Nieuws <b>'+computed.newsScore.toFixed(2)+'</b></span>'+
+      '<span>CFTC netto verandering <b>'+computed.cotChange.toFixed(0)+'</b></span>';
+    track.innerHTML = txt + txt;
+  }
+
+  var prevSide = null;
+  function renderBoard(computed, side){
+    var flapEl = el('flapWord');
+    if(prevSide !== side){ flapEl.classList.remove('flipping'); void flapEl.offsetWidth; flapEl.classList.add('flipping'); }
+    flapEl.textContent = side;
+    flapEl.className = 'flap flipping ' + side;
+    prevSide = side;
+
+    var subMap = {
+      LONG: 'Genoeg van de vijf drivers wijzen bullish voor de euro, boven de drempel voor een signaal.',
+      SHORT: 'Genoeg van de vijf drivers wijzen bearish voor de euro, boven de drempel voor een signaal.',
+      WAIT: 'De vijf drivers zijn niet genoeg uitgelijnd, of de vorige trend is nog niet duidelijk omgeslagen.'
+    };
+    el('boardSub').textContent = subMap[side];
+    el('priceNow').innerHTML = 'EUR/USD <b>'+fmtRate(computed.lastClose)+'</b> <span class="'+(computed.priceChangePct>=0?'chg-up':'chg-down')+'">'+fmtPct(computed.priceChangePct)+' (4H)</span>';
+
+    el('confVal').textContent = computed.confidence + '%';
+    var fill = el('confFill');
+    fill.style.width = computed.confidence + '%';
+    fill.style.background = side==='LONG' ? 'var(--long)' : side==='SHORT' ? 'var(--short)' : 'var(--wait)';
+
+    el('mSince').textContent = timeSince(activeState.since);
+    el('mUpdated').textContent = new Date().toLocaleTimeString('nl-NL', {hour:'2-digit', minute:'2-digit'});
+
+    el('trendVal').textContent = computed.ema9>computed.ema21 ? 'EMA9 boven' : (computed.ema9<computed.ema21 ? 'EMA9 onder' : 'gelijk');
+    el('pillTrend').textContent = label(computed.trend);
+    el('pillTrend').className = 'pill ' + flag(computed.trend);
+
+    el('zoneVal').textContent = (computed.rangePos*100).toFixed(0)+'% v/d range';
+    el('pillZone').textContent = label(computed.zoneScore);
+    el('pillZone').className = 'pill ' + flag(computed.zoneScore);
+
+    el('momVal').textContent = computed.rsiVal.toFixed(1);
+    el('pillMom').textContent = label(computed.momScore);
+    el('pillMom').className = 'pill ' + flag(computed.momScore);
+
+    el('newsVal').textContent = computed.newsScore.toFixed(2);
+    el('pillNews').textContent = label(computed.newsScoreVal);
+    el('pillNews').className = 'pill ' + flag(computed.newsScoreVal);
+
+    el('cotVal').textContent = (computed.cotChange>=0?'+':'')+computed.cotChange.toFixed(0);
+    el('pillCot').textContent = label(computed.cotScoreVal);
+    el('pillCot').className = 'pill ' + flag(computed.cotScoreVal);
+  }
+
+  function renderChart(computed){
+    var canvas = el('chartCanvas');
+    var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+    var w = canvas.clientWidth, h = 220;
+    canvas.width = w*dpr; canvas.height = h*dpr;
+    ctx.scale(dpr,dpr);
+    ctx.clearRect(0,0,w,h);
+    var closes = computed.closesForChart;
+    var min = Math.min.apply(null, closes), max = Math.max.apply(null, closes);
+    var pad = (max-min)*0.08 || 0.001;
+    var lo = min-pad, hi = max+pad;
+    function x(i){ return (i/(closes.length-1))*w; }
+    function y(v){ return h - ((v-lo)/(hi-lo))*h; }
+
+    ctx.beginPath();
+    ctx.moveTo(x(0), y(closes[0]));
+    closes.forEach(function(c,i){ ctx.lineTo(x(i), y(c)); });
+    ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+    var grad = ctx.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0,'rgba(47,123,247,0.20)');
+    grad.addColorStop(1,'rgba(47,123,247,0.0)');
+    ctx.fillStyle = grad; ctx.fill();
+
+    ctx.beginPath();
+    closes.forEach(function(c,i){ if(i===0) ctx.moveTo(x(i),y(c)); else ctx.lineTo(x(i),y(c)); });
+    ctx.strokeStyle = '#2F7BF7'; ctx.lineWidth = 2; ctx.stroke();
+
+    function drawEma(arr, color){
+      var tail = arr.slice(-closes.length);
+      ctx.beginPath();
+      tail.forEach(function(v,i){ if(i===0) ctx.moveTo(x(i),y(v)); else ctx.lineTo(x(i),y(v)); });
+      ctx.strokeStyle = color; ctx.lineWidth = 1.3; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+    }
+    drawEma(computed.ema9arr, 'rgba(53,196,224,0.9)');
+    drawEma(computed.ema21arr, 'rgba(255,255,255,0.35)');
+  }
+
+  function renderTrackRecord(){
+    var hist = loadHistory();
+    var tbody = el('trBody');
+    if(hist.length===0){
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Nog geen gelogde signalen. Zodra het eerste LONG of SHORT signaal vuurt, verschijnt het hier.</td></tr>';
+      el('mWeekCount').textContent = '0';
+      return;
+    }
+    var weekAgo = Date.now() - 7*24*60*60*1000;
+    el('mWeekCount').textContent = hist.filter(function(t){ return t.time>=weekAgo; }).length;
+    tbody.innerHTML = hist.slice(0,15).map(function(t){
+      var d = new Date(t.time);
+      var timeStr = d.toLocaleDateString('nl-NL',{day:'2-digit',month:'2-digit'}) + ' ' + d.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+      return '<tr>'+
+        '<td class="side-'+t.side+'">'+t.side+'</td>'+
+        '<td>'+fmtRate(t.entry)+'</td>'+
+        '<td>'+timeStr+'</td>'+
+        '<td>'+fmtPct(t.peak||0)+'</td>'+
+        '<td>'+(t.status==='open'?'live':'gesloten')+'</td>'+
+      '</tr>';
+    }).join('');
+  }
+
+  function tick(){
+    var keys = getKeys();
+    if(!keys.td || !keys.av){ showSettings(); return Promise.resolve(); }
+    el('statusDot').className = 'dot';
+    el('statusText').textContent = 'bijwerken...';
+    return fetchPriceData(keys.td).then(function(priceData){
+      return fetchNewsSentiment(keys.av).then(function(newsScore){
+        return fetchCOT().then(function(cotData){
+          var computed = computeAll(priceData, newsScore, cotData);
+          var side = handleSignalTransition(computed);
+          renderTicker(computed, side);
+          renderBoard(computed, side);
+          renderChart(computed);
+          renderTrackRecord();
+          el('statusDot').className = 'dot live';
+          el('statusText').textContent = 'live';
+          secondsToNext = PRICE_REFRESH_MS/1000;
+        });
+      });
+    }).catch(function(e){
+      console.error(e);
+      el('statusDot').className = 'dot err';
+      el('statusText').textContent = 'geen verbinding';
+    });
+  }
+
+  function tickCountdown(){
+    secondsToNext = Math.max(0, secondsToNext-1);
+    var c = el('countdown');
+    if(c) c.textContent = secondsToNext;
+  }
+
+  function showSettings(){
+    var keys = getKeys();
+    el('tdKeyInput').value = keys.td;
+    el('avKeyInput').value = keys.av;
+    el('modalErr').style.display = 'none';
+    el('settingsModal').style.display = 'flex';
+  }
+  function hideSettings(){ el('settingsModal').style.display = 'none'; }
+
+  el('statusBtn').addEventListener('click', showSettings);
+  el('saveKeysBtn').addEventListener('click', function(){
+    var td = el('tdKeyInput').value.trim();
+    var av = el('avKeyInput').value.trim();
+    if(!td || !av){ el('modalErr').style.display = 'block'; return; }
+    saveKeys(td, av);
+    hideSettings();
+    tick();
+  });
+
+  (function init(){
+    openTrade = loadOpenTrade();
+    var savedState = loadActiveState();
+    if(savedState) activeState = savedState;
+    else if(openTrade) activeState = {side:openTrade.side, since:openTrade.time};
+
+    var keys = getKeys();
+    if(!keys.td || !keys.av){ showSettings(); return; }
+    tick();
+    setInterval(tick, PRICE_REFRESH_MS);
+    setInterval(tickCountdown, 1000);
+  })();
+})();
+</script>
+
+</body>
+</html>
